@@ -158,12 +158,12 @@ function toDate(timeString) {
 function intersectionTimeIntervals(intervals) {
     intervals = intervals.concat([
         {
-            from: LEFT_BORDER,
-            to: LEFT_BORDER
+            from: addMinuteToDate(LEFT_BORDER, -1),
+            to: addMinuteToDate(LEFT_BORDER, -1)
         },
         {
-            from: RIGHT_BORDER,
-            to: RIGHT_BORDER
+            from: addMinuteToDate(RIGHT_BORDER, 1),
+            to: addMinuteToDate(RIGHT_BORDER, 1)
         }
     ]).sort(function (a, b) {
         return a.from - b.from;
@@ -171,20 +171,21 @@ function intersectionTimeIntervals(intervals) {
     var firstInterval = clone(intervals[0]);
     var secondInterval = clone(intervals[1]);
     var resultIntervals = [];
-    var currentIntervalIndex = 2;
+    var currentIntervalIndex = 1;
     while (firstInterval.to !== intervals[intervals.length - 1].to &&
         currentIntervalIndex !== intervals.length) {
+        currentIntervalIndex++;
         if (firstInterval.to >= secondInterval.from && firstInterval.to <= secondInterval.to) {
             firstInterval.to = new Date(secondInterval.to);
-        } else if (firstInterval.to >= LEFT_BORDER &&
-            firstInterval.from <= RIGHT_BORDER && firstInterval.to <= secondInterval.to) {
+        } else if (firstInterval.to >= addMinuteToDate(LEFT_BORDER, -1) &&
+            firstInterval.from <= addMinuteToDate(RIGHT_BORDER, 1) &&
+            firstInterval.to <= secondInterval.to) {
             resultIntervals.push(firstInterval);
             firstInterval = clone(intervals[currentIntervalIndex - 1]);
         } else if (firstInterval.to <= secondInterval.to) {
             firstInterval = clone(intervals[currentIntervalIndex - 1]);
         }
         secondInterval = clone(intervals[currentIntervalIndex]);
-        currentIntervalIndex++;
     }
     resultIntervals.push(firstInterval);
 
