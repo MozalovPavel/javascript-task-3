@@ -3,11 +3,7 @@
 var WEEK_DAYS_DICTIONARY = {
     'ПН': 10,
     'ВТ': 11,
-    'СР': 12,
-    'ЧТ': 13,
-    'ПТ': 14,
-    'СБ': 15,
-    'ВС': 16
+    'СР': 12
 };
 var CONST_YEAR = 2016;
 var CONST_MONTH = 9;
@@ -34,6 +30,7 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
     intersectionIntervals = intersectionTimeIntervals(intersectionIntervals
         .concat(getBankRelaxTime(workingHours))
     );
+    // console.log(intersectionIntervals);
     var findedMoments = [];
     for (var i = 0; i < intersectionIntervals.length - 1; i++) {
         var firstInterval = clone(intersectionIntervals[i]);
