@@ -54,7 +54,8 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
 
         };
         if (durationInterval.to < secondIntervalFrom &&
-            durationInterval.to <= RIGHT_BORDER && durationInterval.from >= LEFT_BORDER) {
+            durationInterval.to <= RIGHT_BORDER && durationInterval.from >= LEFT_BORDER &&
+            new Date(durationInterval.to).getDate() === new Date(durationInterval.from).getDate()) {
             findedMoment.push(new Date(durationInterval.from));
             intersectionIntervals.push(
                 {
@@ -188,6 +189,7 @@ function intersectionTimeIntervals(intervals) {
         secondInterval = clone(intervals[currentIntervalIndex]);
     }
     resultIntervals.push(firstInterval);
+    // console.log(resultIntervals);
 
     return resultIntervals;
 }
