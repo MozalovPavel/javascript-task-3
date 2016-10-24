@@ -31,7 +31,6 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
     intersectionIntervals = intersectionTimeIntervals(intersectionIntervals
         .concat(getBankRelaxTime(workingHours))
     );
-    // console.log(intersectionIntervals);
     var findedMoments = [];
     for (var i = 0; i < intersectionIntervals.length - 1; i++) {
         var firstInterval = clone(intersectionIntervals[i]);
@@ -40,8 +39,6 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             from: addMinuteToDate(firstInterval.to, + 1),
             to: addMinuteToDate(firstInterval.to, duration + 1)
         };
-        console.log(1);
-        console.log(durationInterval);
         if (durationInterval.to < secondIntervalFrom &&
             durationInterval.to <= RIGHT_BORDER && durationInterval.from >= LEFT_BORDER) {
             findedMoments.push(getFindedMoment(intersectionIntervals, durationInterval));
@@ -104,8 +101,8 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             if (findedMoments.length !== 1) {
                 findedMoments.splice(0, 1);
             }
-            return true;
 
+            return true;
         }
     };
 };
