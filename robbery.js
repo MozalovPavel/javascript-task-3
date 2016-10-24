@@ -14,7 +14,8 @@ var RIGHT_BORDER = new Date(CONST_YEAR, CONST_MONTH, WEEK_DAYS_DICTIONARY['СР'
  * Сделано задание на звездочку
  * Реализовано оба метода и tryLater
  */
-exports.isStar = true;
+// exports.isStar = true;
+exports.isStar = false;
 
 /**
  * @param {Object} schedule – Расписание Банды
@@ -39,6 +40,8 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             from: addMinuteToDate(firstInterval.to, + 1),
             to: addMinuteToDate(firstInterval.to, duration + 1)
         };
+        console.log(1);
+        console.log(durationInterval);
         if (durationInterval.to < secondIntervalFrom &&
             durationInterval.to <= RIGHT_BORDER && durationInterval.from >= LEFT_BORDER) {
             findedMoments.push(getFindedMoment(intersectionIntervals, durationInterval));
