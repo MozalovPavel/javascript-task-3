@@ -15,7 +15,7 @@ var RIGHT_BORDER = new Date(CONST_YEAR, CONST_MONTH, WEEK_DAYS_DICTIONARY['СР'
  * Реализовано оба метода и tryLater
  */
 // exports.isStar = true;
-exports.isStar = false;
+exports.isStar = true;
 
 /**
  * @param {Object} schedule – Расписание Банды
