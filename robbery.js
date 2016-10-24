@@ -72,7 +72,7 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {String}
          */
         format: function (template) {
-            if (!findedMoments[0]) {
+            if (!this.exists()) {
                 return '';
             }
             var day = findedMoments[0].getDate();
@@ -82,11 +82,11 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             var textDay = weekDays.filter(function (weekDay) {
                 return WEEK_DAYS_DICTIONARY[weekDay] === day;
             })[0];
-            var result = template.replace(/(%DD)/, textDay)
+
+            return template
+                .replace(/(%DD)/, textDay)
                 .replace(/(%HH)/, hours)
                 .replace(/(%MM)/, minutes);
-
-            return result;
         },
 
         /**
@@ -95,13 +95,14 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {Boolean}
          */
         tryLater: function () {
-            if (findedMoments.length - 1) {
-                findedMoments.splice(0, 1);
-
-                return true;
+            if (!this.exists()) {
+                return false;
             }
+            if (findedMoments.length !== 1) {
+                findedMoments.splice(0, 1);
+            }
+            return true;
 
-            return false;
         }
     };
 };
