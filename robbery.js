@@ -30,41 +30,26 @@ exports.isStar = true;
  */
 exports.getAppropriateMoment = function (schedule, duration, workingHours) {
     var generalTimezone = workingHours.from.match(/\+(\d{1,2})/)[1];
-    var intersectionIntervals = [];
-    Object.keys(schedule).forEach(function (name) {
-        schedule[name].forEach(function (fromToObject) {
-            intersectionIntervals.push(
-                {
-                    from: addMinuteToDate(dateToNewTimezone(fromToObject.from, generalTimezone), 1),
-                    to: addMinuteToDate(dateToNewTimezone(fromToObject.to, generalTimezone), -1)
-                }
-            );
-        });
-    });
+    var intersectionIntervals = getNoFreeTime(schedule, generalTimezone);
     intersectionIntervals = intersectionTimeIntervals(intersectionIntervals
         .concat(getBankRelaxTime(workingHours))
     );
-    var findedMoment = [];
+    var findedMoments = [];
     for (var i = 0; i < intersectionIntervals.length - 1; i++) {
         var firstInterval = clone(intersectionIntervals[i]);
         var secondIntervalFrom = new Date(intersectionIntervals[i + 1].from);
         var durationInterval = {
             from: addMinuteToDate(firstInterval.to, + 1),
             to: addMinuteToDate(firstInterval.to, duration + 1)
-
         };
         if (durationInterval.to < secondIntervalFrom &&
-            durationInterval.to <= RIGHT_BORDER && durationInterval.from >= LEFT_BORDER &&
-            new Date(durationInterval.to).getDate() === new Date(durationInterval.from).getDate()) {
-            findedMoment.push(new Date(durationInterval.from));
-            intersectionIntervals.push(
-                {
-                    from: new Date(LEFT_BORDER),
-                    to: addMinuteToDate(findedMoment[findedMoment.length - 1], + 30 - 1)
-                }
-            );
-            intersectionIntervals = intersectionTimeIntervals(intersectionIntervals);
+            durationInterval.to <= RIGHT_BORDER && durationInterval.from >= LEFT_BORDER) {
+            findedMoments.push(getFindedMoment(intersectionIntervals, durationInterval));
             i = -1;
+            intersectionIntervals = intersectionTimeIntervals(intersectionIntervals);
+        }
+        if (!findedMoments[findedMoments.length - 1]) {
+            findedMoments.pop();
         }
     }
 
@@ -75,7 +60,7 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {Boolean}
          */
         exists: function () {
-            if (!findedMoment.length) {
+            if (!findedMoments.length) {
                 return false;
             }
 
@@ -90,12 +75,12 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {String}
          */
         format: function (template) {
-            if (!findedMoment[0]) {
+            if (!findedMoments[0]) {
                 return '';
             }
-            var day = findedMoment[0].getDate();
-            var hours = ('0' + findedMoment[0].getHours()).slice(-2);
-            var minutes = ('0' + findedMoment[0].getMinutes()).slice(-2);
+            var day = findedMoments[0].getDate();
+            var hours = ('0' + findedMoments[0].getHours()).slice(-2);
+            var minutes = ('0' + findedMoments[0].getMinutes()).slice(-2);
             var weekDays = Object.keys(WEEK_DAYS_DICTIONARY);
             var textDay = weekDays.filter(function (weekDay) {
                 return WEEK_DAYS_DICTIONARY[weekDay] === day;
@@ -113,8 +98,8 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {Boolean}
          */
         tryLater: function () {
-            if (findedMoment.length - 1) {
-                findedMoment.splice(0, 1);
+            if (findedMoments.length - 1) {
+                findedMoments.splice(0, 1);
 
                 return true;
             }
@@ -123,6 +108,44 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
         }
     };
 };
+function getNoFreeTime(schedule, generalTimezone) {
+    var noFreeIntervals = [];
+    Object.keys(schedule).forEach(function (name) {
+        schedule[name].forEach(function (fromToObject) {
+            noFreeIntervals.push(
+                {
+                    from: addMinuteToDate(dateToNewTimezone(fromToObject.from, generalTimezone), 1),
+                    to: addMinuteToDate(dateToNewTimezone(fromToObject.to, generalTimezone), -1)
+                }
+            );
+        });
+    });
+
+    return noFreeIntervals;
+}
+function getFindedMoment(intervals, duration) {
+    var moment = null;
+    if (new Date(duration.to).getDate() ===
+    new Date(duration.from).getDate()) {
+
+        moment = new Date(duration.from);
+        intervals.push(
+            {
+                from: new Date(LEFT_BORDER),
+                to: addMinuteToDate(duration.from, + 30 - 1)
+            }
+        );
+    } else {
+        intervals.push(
+            {
+                from: new Date(LEFT_BORDER),
+                to: addMinuteToDate(duration.from, 0)
+            }
+        );
+    }
+
+    return moment;
+}
 function addMinuteToDate(date, minutes) {
     return new Date(new Date(date).setMinutes(new Date(date).getMinutes() + minutes));
 }
