@@ -17,8 +17,8 @@ var END_WEDNESDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(),
  * Сделано задание на звездочку
  * Реализовано оба метода и tryLater
  */
-exports.isStar = false;
 // exports.isStar = true;
+exports.isStar = true;
 
 /**
  * @param {Object} schedule – Расписание Банды
@@ -178,9 +178,9 @@ function intersectionTimeIntervals(intervals) {
         currentIntervalIndex++;
         if (firstInterval.to >= secondInterval.from && firstInterval.to <= secondInterval.to) {
             firstInterval.to = secondInterval.to;
-        } else if (firstInterval.to >= BEGIN_MONDAY && firstInterval.from <= END_WEDNESDAY &&
+        } else if (firstInterval.to >= BEGIN_MONDAY - MS_IN_MIN &&
+            firstInterval.from <= END_WEDNESDAY + MS_IN_MIN &&
             firstInterval.to <= secondInterval.to) {
-
             resultIntervals.push(firstInterval);
             firstInterval = secondInterval;
         } else if (firstInterval.to <= secondInterval.to) {
