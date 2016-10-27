@@ -1,14 +1,17 @@
 'use strict';
 
-var WEEK_DAYS_DICTIONARY = {
-    'ПН': 10,
-    'ВТ': 11,
-    'СР': 12
+var WEEK_DAYS = {
+    'ПН': 1,
+    'ВТ': 2,
+    'СР': 3
 };
-var CONST_YEAR = 2016;
-var CONST_MONTH = 9;
-var LEFT_BORDER = new Date(CONST_YEAR, CONST_MONTH, WEEK_DAYS_DICTIONARY['ПН'], 0, 0);
-var RIGHT_BORDER = new Date(CONST_YEAR, CONST_MONTH, WEEK_DAYS_DICTIONARY['СР'], 23, 59);
+var MS_IN_MIN = 1000 * 60;
+var MS_IN_HOUR = MS_IN_MIN * 60;
+var TODAY = new Date();
+var BEGIN_MONDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(),
+    WEEK_DAYS['ПН'], 0, 0).getTime();
+var END_WEDNESDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(),
+    WEEK_DAYS['СР'], 23, 59).getTime();
 
 /**
  * Сделано задание на звездочку
@@ -26,30 +29,22 @@ exports.isStar = true;
  * @returns {Object}
  */
 exports.getAppropriateMoment = function (schedule, duration, workingHours) {
-    var intersectionIntervals = getNoFreeTime(schedule,
-        workingHours.from.match(/\+(\d{1,2})/)[1]);
-    intersectionIntervals = intersectionTimeIntervals(intersectionIntervals
-        .concat(getBankRelaxTime(workingHours))
-    );
-    var findedMoments = [];
-    for (var i = 0; i < intersectionIntervals.length - 1; i++) {
-        var firstInterval = clone(intersectionIntervals[i]);
-        var secondIntervalFrom = new Date(intersectionIntervals[i + 1].from);
-        var durationInterval = {
-            from: addMinuteToDate(firstInterval.to, + 1),
-            to: addMinuteToDate(firstInterval.to, duration + 1)
-        };
-        if (durationInterval.to < secondIntervalFrom &&
-            durationInterval.to <= RIGHT_BORDER && durationInterval.from >= LEFT_BORDER) {
-            findedMoments.push(getFindedMoment(intersectionIntervals, durationInterval));
-            i = -1;
-            intersectionIntervals = intersectionTimeIntervals(intersectionIntervals);
+    var bankTimezone = getTimezone(workingHours.from);
+    var timeIntervals = parseShedule(schedule).map(function (interval) {
+        return toBankTimezone(interval, bankTimezone);
+    });
+    timeIntervals = timeIntervals.concat(getBankNotWorkingTime(workingHours));
+    timeIntervals = intersectionTimeIntervals(timeIntervals).concat([
+        {
+            from: BEGIN_MONDAY - MS_IN_MIN,
+            to: BEGIN_MONDAY - MS_IN_MIN
+        },
+        {
+            from: END_WEDNESDAY + MS_IN_MIN,
+            to: END_WEDNESDAY + MS_IN_MIN
         }
-        if (!findedMoments[findedMoments.length - 1]) {
-            findedMoments.pop();
-        }
-    }
-    var lastMoment = findedMoments[0];
+    ]);
+    var lastMoment = getRobberyMoment(timeIntervals, duration);
 
     return {
 
@@ -76,12 +71,12 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             if (!this.exists()) {
                 return '';
             }
-            var day = lastMoment.getDate();
-            var hours = ('0' + lastMoment.getHours()).slice(-2);
-            var minutes = ('0' + lastMoment.getMinutes()).slice(-2);
-            var weekDays = Object.keys(WEEK_DAYS_DICTIONARY);
+            var day = new Date(lastMoment).getDate();
+            var hours = ('0' + new Date(lastMoment).getHours()).slice(-2);
+            var minutes = ('0' + new Date(lastMoment).getMinutes()).slice(-2);
+            var weekDays = Object.keys(WEEK_DAYS);
             var textDay = weekDays.filter(function (weekDay) {
-                return WEEK_DAYS_DICTIONARY[weekDay] === day;
+                return WEEK_DAYS[weekDay] === day;
             })[0];
 
             return template
@@ -96,150 +91,129 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {Boolean}
          */
         tryLater: function () {
-            if (findedMoments.length > 1) {
-                findedMoments.splice(0, 1);
+            var lastTruMoment = lastMoment;
+            timeIntervals.push(
+                {
+                    from: BEGIN_MONDAY,
+                    to: lastMoment + 30 * MS_IN_MIN
+                }
+            );
+            timeIntervals = intersectionTimeIntervals(timeIntervals);
+            if (getRobberyMoment(timeIntervals, duration)) {
+                lastMoment = getRobberyMoment(timeIntervals, duration);
             }
-            if (lastMoment === findedMoments[0]) {
+            if (lastTruMoment === lastMoment) {
                 return false;
             }
-            lastMoment = findedMoments[0];
 
             return true;
         }
     };
 };
-function getNoFreeTime(schedule, bankTimezone) {
-    var noFreeIntervals = [];
+function toBankTimezone(interval, templateTimezone) {
+    var deltaZone = templateTimezone - interval.timezone;
+
+    return {
+        from: interval.from + deltaZone * MS_IN_HOUR,
+        to: interval.to + deltaZone * MS_IN_HOUR
+    };
+}
+function parseShedule(schedule) {
+    var intervals = [];
     Object.keys(schedule).forEach(function (name) {
-        schedule[name].forEach(function (fromToObject) {
-            noFreeIntervals.push(
+        schedule[name].forEach(function (obj) {
+            intervals.push(
                 {
-                    from: addMinuteToDate(dateToNewTimezone(fromToObject.from, bankTimezone), 1),
-                    to: addMinuteToDate(dateToNewTimezone(fromToObject.to, bankTimezone), -1)
+                    from: toDate(obj.from),
+                    to: toDate(obj.to),
+                    timezone: getTimezone(obj.from)
                 }
             );
         });
     });
 
-    return noFreeIntervals;
-}
-function getFindedMoment(intervals, duration) {
-    var moment = null;
-    if (new Date(duration.to).getDate() ===
-    new Date(duration.from).getDate()) {
-
-        moment = new Date(duration.from);
-        intervals.push(
-            {
-                from: new Date(LEFT_BORDER),
-                to: addMinuteToDate(duration.from, + 30 - 1)
-            }
-        );
-    } else {
-        intervals.push(
-            {
-                from: new Date(LEFT_BORDER),
-                to: addMinuteToDate(duration.from, 0)
-            }
-        );
-    }
-
-    return moment;
-}
-function addMinuteToDate(date, minutes) {
-    return new Date(new Date(date).setMinutes(new Date(date).getMinutes() + minutes));
-}
-function clone(obj) {
-    if (obj === null || typeof obj !== 'object') {
-        return obj;
-    }
-    var copy = obj.constructor();
-    for (var attr in obj) {
-        if (obj.hasOwnProperty(attr)) {
-            copy[attr] = obj[attr];
-        }
-    }
-
-    return copy;
-}
-
-function dateToNewTimezone(timeString, templateTimezone) {
-    var date = toDate(timeString);
-    var timezone = parseInt(timeString.match(/\+(\d{1,2})$/)[1]);
-    date.setHours(date.getHours() + (templateTimezone - timezone));
-
-    return date;
+    return intervals;
 }
 function toDate(timeString) {
     var matches = timeString.match(/^([А-Я]{2})\s(\d{2}):(\d{2})/);
-    var day = WEEK_DAYS_DICTIONARY[matches[1]];
+    var day = WEEK_DAYS[matches[1]];
     var hours = parseInt(matches[2]);
     var minutes = parseInt(matches[3]);
-    var date = new Date(CONST_YEAR, CONST_MONTH, day, hours, minutes);
+    var date = new Date(TODAY.getFullYear(), TODAY.getMonth(), day, hours, minutes).getTime();
 
     return date;
 }
-function intersectionTimeIntervals(intervals) {
-    intervals = intervals.concat([
-        {
-            from: addMinuteToDate(LEFT_BORDER, -1),
-            to: addMinuteToDate(LEFT_BORDER, -1)
-        },
-        {
-            from: addMinuteToDate(RIGHT_BORDER, 1),
-            to: addMinuteToDate(RIGHT_BORDER, 1)
+function getTimezone(timeString) {
+    return parseInt(timeString.match(/\+(\d{1,2})$/)[1]);
+}
+function getRobberyMoment(intervals, duration) {
+    for (var i = 0; i < intervals.length - 1; i++) {
+        var firstInterval = intervals[i];
+        var secondInterval = intervals[i + 1];
+        var durationInterval = {
+            from: firstInterval.to,
+            to: firstInterval.to + (duration - 1) * MS_IN_MIN
+        };
+        if (durationInterval.to < secondInterval.from &&
+            durationInterval.to <= END_WEDNESDAY && durationInterval.from >= BEGIN_MONDAY &&
+            new Date(durationInterval.to).getDate() === new Date(durationInterval.from).getDate()) {
+
+            return durationInterval.from;
         }
-    ]).sort(function (a, b) {
+    }
+
+    return null;
+}
+function intersectionTimeIntervals(intervals) {
+    intervals.sort(function (a, b) {
         return a.from - b.from;
     });
-    var firstInterval = clone(intervals[0]);
-    var secondInterval = clone(intervals[1]);
+    var firstInterval = intervals[0];
+    var secondInterval = intervals[1];
     var resultIntervals = [];
     var currentIntervalIndex = 1;
-    while (firstInterval.to !== intervals[intervals.length - 1].to &&
-        currentIntervalIndex !== intervals.length) {
+    while (currentIntervalIndex !== intervals.length) {
         currentIntervalIndex++;
         if (firstInterval.to >= secondInterval.from && firstInterval.to <= secondInterval.to) {
-            firstInterval.to = new Date(secondInterval.to);
-        } else if (firstInterval.to >= addMinuteToDate(LEFT_BORDER, -1) &&
-            firstInterval.from <= addMinuteToDate(RIGHT_BORDER, 1) &&
+            firstInterval.to = secondInterval.to;
+        } else if (firstInterval.to >= BEGIN_MONDAY && firstInterval.from <= END_WEDNESDAY &&
             firstInterval.to <= secondInterval.to) {
+
             resultIntervals.push(firstInterval);
-            firstInterval = clone(intervals[currentIntervalIndex - 1]);
+            firstInterval = secondInterval;
         } else if (firstInterval.to <= secondInterval.to) {
-            firstInterval = clone(intervals[currentIntervalIndex - 1]);
+            firstInterval = secondInterval;
         }
-        secondInterval = clone(intervals[currentIntervalIndex]);
+        secondInterval = intervals[currentIntervalIndex];
     }
     resultIntervals.push(firstInterval);
-    // console.log(resultIntervals);
 
     return resultIntervals;
 }
-function getBankRelaxTime(workingHours) {
-    var weekDays = Object.keys(WEEK_DAYS_DICTIONARY);
+function getBankNotWorkingTime(workingHours) {
+    var weekDays = Object.keys(WEEK_DAYS);
     var relaxIntervals = [];
     weekDays.forEach(function (day) {
         var workingDates = {
             from: toDate(day + ' ' + workingHours.from),
             to: toDate(day + ' ' + workingHours.to)
         };
-        var leftDayBorder = new Date(LEFT_BORDER);
-        var rightDayBorder = new Date(RIGHT_BORDER);
-        leftDayBorder.setDate(WEEK_DAYS_DICTIONARY[day]);
-        rightDayBorder.setDate(WEEK_DAYS_DICTIONARY[day]);
+        var leftDayBorder = new Date(BEGIN_MONDAY)
+            .setDate(WEEK_DAYS[day]);
+        var rightDayBorder = new Date(END_WEDNESDAY)
+            .setDate(WEEK_DAYS[day]);
         if (workingDates.from - leftDayBorder !== 0) {
-            var to = workingDates.from.setMinutes(workingDates.from.getMinutes() - 1);
+            var to = workingDates.from;
             relaxIntervals.push({
-                from: new Date(leftDayBorder),
-                to: new Date(to)
+                from: leftDayBorder,
+                to: to
             });
         }
         if (rightDayBorder - workingDates.to !== 0) {
-            var from = workingDates.to.setMinutes(workingDates.to.getMinutes() + 1);
+            var from = workingDates.to;
             relaxIntervals.push({
-                from: new Date(from),
-                to: new Date(rightDayBorder)
+                from: from,
+                to: rightDayBorder
             });
         }
     });
