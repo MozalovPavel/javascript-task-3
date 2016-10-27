@@ -36,12 +36,12 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
     timeIntervals = timeIntervals.concat(getBankNotWorkingTime(workingHours));
     timeIntervals = timeIntervals.concat([
         {
-            from: BEGIN_MONDAY,
-            to: BEGIN_MONDAY
+            from: BEGIN_MONDAY - MS_IN_MIN,
+            to: BEGIN_MONDAY - MS_IN_MIN
         },
         {
-            from: END_WEDNESDAY,
-            to: END_WEDNESDAY
+            from: END_WEDNESDAY + MS_IN_MIN,
+            to: END_WEDNESDAY + MS_IN_MIN
         }
     ]);
     timeIntervals = intersectionTimeIntervals(timeIntervals);
@@ -96,7 +96,7 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             timeIntervals.push(
                 {
                     from: BEGIN_MONDAY,
-                    to: lastMoment + 30 * MS_IN_MIN
+                    to: lastMoment + 29 * MS_IN_MIN
                 }
             );
             timeIntervals = intersectionTimeIntervals(timeIntervals);
@@ -125,8 +125,8 @@ function parseShedule(schedule) {
         schedule[name].forEach(function (obj) {
             intervals.push(
                 {
-                    from: toDate(obj.from),
-                    to: toDate(obj.to),
+                    from: toDate(obj.from) + MS_IN_MIN,
+                    to: toDate(obj.to) - MS_IN_MIN,
                     timezone: getTimezone(obj.from)
                 }
             );
@@ -152,8 +152,8 @@ function getRobberyMoment(intervals, duration) {
         var firstInterval = intervals[i];
         var secondInterval = intervals[i + 1];
         var durationInterval = {
-            from: firstInterval.to,
-            to: firstInterval.to + (duration - 1) * MS_IN_MIN
+            from: firstInterval.to + MS_IN_MIN,
+            to: firstInterval.to + (duration + 1) * MS_IN_MIN
         };
         if (durationInterval.to < secondInterval.from &&
             durationInterval.to <= END_WEDNESDAY && durationInterval.from >= BEGIN_MONDAY &&
@@ -178,13 +178,13 @@ function intersectionTimeIntervals(intervals) {
         currentIntervalIndex++;
         if (firstInterval.to >= secondInterval.from && firstInterval.to <= secondInterval.to) {
             firstInterval.to = secondInterval.to;
-        } else if (firstInterval.to >= BEGIN_MONDAY - MS_IN_MIN &&
-            firstInterval.from <= END_WEDNESDAY + MS_IN_MIN &&
+        } else if (firstInterval.to >= BEGIN_MONDAY && firstInterval.from <= END_WEDNESDAY &&
             firstInterval.to <= secondInterval.to) {
+
             resultIntervals.push(firstInterval);
-            firstInterval = intervals[currentIntervalIndex - 1];
+            firstInterval = secondInterval;
         } else if (firstInterval.to <= secondInterval.to) {
-            firstInterval = intervals[currentIntervalIndex - 1];
+            firstInterval = secondInterval;
         }
         secondInterval = intervals[currentIntervalIndex];
     }
@@ -194,7 +194,7 @@ function intersectionTimeIntervals(intervals) {
 }
 function getBankNotWorkingTime(workingHours) {
     var weekDays = Object.keys(WEEK_DAYS);
-    var relaxIntervals = [];
+    var resultIntervals = [];
     weekDays.forEach(function (day) {
         var workingDates = {
             from: toDate(day + ' ' + workingHours.from),
@@ -205,20 +205,20 @@ function getBankNotWorkingTime(workingHours) {
         var rightDayBorder = new Date(END_WEDNESDAY)
             .setDate(WEEK_DAYS[day]);
         if (workingDates.from - leftDayBorder !== 0) {
-            var to = workingDates.from;
-            relaxIntervals.push({
+            var to = workingDates.from - MS_IN_MIN;
+            resultIntervals.push({
                 from: leftDayBorder,
                 to: to
             });
         }
         if (rightDayBorder - workingDates.to !== 0) {
-            var from = workingDates.to;
-            relaxIntervals.push({
+            var from = workingDates.to + MS_IN_MIN;
+            resultIntervals.push({
                 from: from,
                 to: rightDayBorder
             });
         }
     });
 
-    return relaxIntervals;
+    return resultIntervals;
 }
