@@ -34,16 +34,17 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
         return toBankTimezone(interval, bankTimezone);
     });
     timeIntervals = timeIntervals.concat(getBankNotWorkingTime(workingHours));
-    timeIntervals = intersectionTimeIntervals(timeIntervals).concat([
+    timeIntervals = timeIntervals.concat([
         {
-            from: BEGIN_MONDAY - MS_IN_MIN,
-            to: BEGIN_MONDAY - MS_IN_MIN
+            from: BEGIN_MONDAY,
+            to: BEGIN_MONDAY
         },
         {
-            from: END_WEDNESDAY + MS_IN_MIN,
-            to: END_WEDNESDAY + MS_IN_MIN
+            from: END_WEDNESDAY,
+            to: END_WEDNESDAY
         }
     ]);
+    timeIntervals = intersectionTimeIntervals(timeIntervals);
     var lastMoment = getRobberyMoment(timeIntervals, duration);
 
     return {
@@ -172,17 +173,18 @@ function intersectionTimeIntervals(intervals) {
     var secondInterval = intervals[1];
     var resultIntervals = [];
     var currentIntervalIndex = 1;
-    while (currentIntervalIndex !== intervals.length) {
+    while (firstInterval.to !== intervals[intervals.length - 1].to &&
+        currentIntervalIndex !== intervals.length) {
         currentIntervalIndex++;
         if (firstInterval.to >= secondInterval.from && firstInterval.to <= secondInterval.to) {
             firstInterval.to = secondInterval.to;
-        } else if (firstInterval.to >= BEGIN_MONDAY && firstInterval.from <= END_WEDNESDAY &&
+        } else if (firstInterval.to >= BEGIN_MONDAY - MS_IN_MIN &&
+            firstInterval.from <= END_WEDNESDAY + MS_IN_MIN &&
             firstInterval.to <= secondInterval.to) {
-
             resultIntervals.push(firstInterval);
-            firstInterval = secondInterval;
+            firstInterval = intervals[currentIntervalIndex - 1];
         } else if (firstInterval.to <= secondInterval.to) {
-            firstInterval = secondInterval;
+            firstInterval = intervals[currentIntervalIndex - 1];
         }
         secondInterval = intervals[currentIntervalIndex];
     }
