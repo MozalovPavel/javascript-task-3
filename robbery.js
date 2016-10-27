@@ -17,8 +17,8 @@ var END_WEDNESDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(),
  * Сделано задание на звездочку
  * Реализовано оба метода и tryLater
  */
+exports.isStar = false;
 // exports.isStar = true;
-exports.isStar = true;
 
 /**
  * @param {Object} schedule – Расписание Банды
