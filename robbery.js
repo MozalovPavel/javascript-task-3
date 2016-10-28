@@ -33,6 +33,16 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
         return toBankTimezone(interval, bankTimezone);
     });
     timeIntervals = timeIntervals.concat(getBankNotWorkingTime(workingHours));
+    timeIntervals = timeIntervals.concat([
+        {
+            from: BEGIN_MONDAY - MS_IN_MIN,
+            to: BEGIN_MONDAY - MS_IN_MIN
+        },
+        {
+            from: END_WEDNESDAY + MS_IN_MIN,
+            to: END_WEDNESDAY + MS_IN_MIN
+        }
+    ]);
     var lastMoment = getRobberyMoment(timeIntervals, duration);
 
     return {
