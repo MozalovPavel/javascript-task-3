@@ -8,10 +8,9 @@ var WEEK_DAYS = {
 var MS_IN_MIN = 1000 * 60;
 var MS_IN_HOUR = MS_IN_MIN * 60;
 var TODAY = new Date();
-var BEGIN_MONDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(),
-    WEEK_DAYS['ПН'], 0, 0).getTime();
-var END_WEDNESDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(),
-    WEEK_DAYS['СР'], 23, 59).getTime();
+var BEGIN_MONDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1, 0, 0).getTime();
+var END_WEDNESDAY = new Date(TODAY.getFullYear(), TODAY.getMonth(), 3, 23, 59).getTime();
+var TIME_INDENT = 30;
 
 /**
  * Сделано задание на звездочку
@@ -34,17 +33,6 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
         return toBankTimezone(interval, bankTimezone);
     });
     timeIntervals = timeIntervals.concat(getBankNotWorkingTime(workingHours));
-    timeIntervals = timeIntervals.concat([
-        {
-            from: BEGIN_MONDAY - MS_IN_MIN,
-            to: BEGIN_MONDAY - MS_IN_MIN
-        },
-        {
-            from: END_WEDNESDAY + MS_IN_MIN,
-            to: END_WEDNESDAY + MS_IN_MIN
-        }
-    ]);
-    timeIntervals = intersectionTimeIntervals(timeIntervals);
     var lastMoment = getRobberyMoment(timeIntervals, duration);
 
     return {
@@ -75,8 +63,7 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             var day = new Date(lastMoment).getDate();
             var hours = ('0' + new Date(lastMoment).getHours()).slice(-2);
             var minutes = ('0' + new Date(lastMoment).getMinutes()).slice(-2);
-            var weekDays = Object.keys(WEEK_DAYS);
-            var textDay = weekDays.filter(function (weekDay) {
+            var textDay = Object.keys(WEEK_DAYS).filter(function (weekDay) {
                 return WEEK_DAYS[weekDay] === day;
             })[0];
 
@@ -92,18 +79,17 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {Boolean}
          */
         tryLater: function () {
-            var lastTruMoment = lastMoment;
+            var lastTryMoment = lastMoment;
             timeIntervals.push(
                 {
                     from: BEGIN_MONDAY,
-                    to: lastMoment + 29 * MS_IN_MIN
+                    to: lastMoment + (TIME_INDENT - 1) * MS_IN_MIN
                 }
             );
-            timeIntervals = intersectionTimeIntervals(timeIntervals);
             if (getRobberyMoment(timeIntervals, duration)) {
                 lastMoment = getRobberyMoment(timeIntervals, duration);
             }
-            if (lastTruMoment === lastMoment) {
+            if (lastTryMoment === lastMoment) {
                 return false;
             }
 
@@ -111,8 +97,8 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
         }
     };
 };
-function toBankTimezone(interval, templateTimezone) {
-    var deltaZone = templateTimezone - interval.timezone;
+function toBankTimezone(interval, bankTimezone) {
+    var deltaZone = bankTimezone - interval.timezone;
 
     return {
         from: interval.from + deltaZone * MS_IN_HOUR,
@@ -136,18 +122,18 @@ function parseShedule(schedule) {
     return intervals;
 }
 function toDate(timeString) {
-    var matches = timeString.match(/^([А-Я]{2})\s(\d{2}):(\d{2})/);
-    var day = WEEK_DAYS[matches[1]];
-    var hours = parseInt(matches[2]);
-    var minutes = parseInt(matches[3]);
-    var date = new Date(TODAY.getFullYear(), TODAY.getMonth(), day, hours, minutes).getTime();
+    var parsedTime = timeString.match(/^([А-Я]{2})\s(\d{2}):(\d{2})/);
+    var day = WEEK_DAYS[parsedTime[1]];
+    var hours = parseInt(parsedTime[2]);
+    var minutes = parseInt(parsedTime[3]);
 
-    return date;
+    return new Date(TODAY.getFullYear(), TODAY.getMonth(), day, hours, minutes).getTime();
 }
 function getTimezone(timeString) {
     return parseInt(timeString.match(/\+(\d{1,2})$/)[1]);
 }
 function getRobberyMoment(intervals, duration) {
+    intervals = intersectionTimeIntervals(intervals);
     for (var i = 0; i < intervals.length - 1; i++) {
         var firstInterval = intervals[i];
         var secondInterval = intervals[i + 1];
@@ -162,8 +148,10 @@ function getRobberyMoment(intervals, duration) {
             return durationInterval.from;
         }
     }
-
-    return null;
+}
+function isInLimit(firstInterval) {
+    return firstInterval.to >= BEGIN_MONDAY - MS_IN_MIN &&
+        firstInterval.from <= END_WEDNESDAY + MS_IN_MIN;
 }
 function intersectionTimeIntervals(intervals) {
     intervals.sort(function (a, b) {
@@ -173,17 +161,12 @@ function intersectionTimeIntervals(intervals) {
     var secondInterval = intervals[1];
     var resultIntervals = [];
     var currentIntervalIndex = 1;
-    while (firstInterval.to !== intervals[intervals.length - 1].to &&
-        currentIntervalIndex !== intervals.length) {
+    while (currentIntervalIndex !== intervals.length) {
         currentIntervalIndex++;
-        if (firstInterval.to >= secondInterval.from && firstInterval.to <= secondInterval.to) {
-            firstInterval.to = secondInterval.to;
-        } else if (firstInterval.to >= BEGIN_MONDAY - MS_IN_MIN &&
-            firstInterval.from <= END_WEDNESDAY + MS_IN_MIN &&
-            firstInterval.to <= secondInterval.to) {
+        if (isInLimit(firstInterval) && firstInterval.to <= secondInterval.to) {
             resultIntervals.push(firstInterval);
-            firstInterval = secondInterval;
-        } else if (firstInterval.to <= secondInterval.to) {
+        }
+        if (firstInterval.to <= secondInterval.to) {
             firstInterval = secondInterval;
         }
         secondInterval = intervals[currentIntervalIndex];
@@ -192,31 +175,25 @@ function intersectionTimeIntervals(intervals) {
 
     return resultIntervals;
 }
+function getBankWorkingDate(workingHours, day) {
+    return {
+        from: toDate(day + ' ' + workingHours.from),
+        to: toDate(day + ' ' + workingHours.to)
+    };
+}
 function getBankNotWorkingTime(workingHours) {
-    var weekDays = Object.keys(WEEK_DAYS);
     var resultIntervals = [];
-    weekDays.forEach(function (day) {
-        var workingDates = {
-            from: toDate(day + ' ' + workingHours.from),
-            to: toDate(day + ' ' + workingHours.to)
-        };
-        var leftDayBorder = new Date(BEGIN_MONDAY)
-            .setDate(WEEK_DAYS[day]);
-        var rightDayBorder = new Date(END_WEDNESDAY)
-            .setDate(WEEK_DAYS[day]);
-        if (workingDates.from - leftDayBorder !== 0) {
-            var to = workingDates.from - MS_IN_MIN;
-            resultIntervals.push({
-                from: leftDayBorder,
-                to: to
-            });
+    Object.keys(WEEK_DAYS).forEach(function (day) {
+        var workingDates = getBankWorkingDate(workingHours, day);
+        var leftDayBorder = new Date(BEGIN_MONDAY).setDate(WEEK_DAYS[day]);
+        var rightDayBorder = new Date(END_WEDNESDAY).setDate(WEEK_DAYS[day]);
+        var leftNotWorkingInterval = { from: leftDayBorder, to: workingDates.from - MS_IN_MIN };
+        var rightNotWorkingInterval = { from: workingDates.to + MS_IN_MIN, to: rightDayBorder };
+        if (workingDates.from !== leftDayBorder) {
+            resultIntervals.push(leftNotWorkingInterval);
         }
-        if (rightDayBorder - workingDates.to !== 0) {
-            var from = workingDates.to + MS_IN_MIN;
-            resultIntervals.push({
-                from: from,
-                to: rightDayBorder
-            });
+        if (rightDayBorder !== workingDates.to) {
+            resultIntervals.push(rightNotWorkingInterval);
         }
     });
 
