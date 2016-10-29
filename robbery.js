@@ -160,11 +160,8 @@ function getRobberyMoments(intervals, duration) {
         var durationInterval = getDurationInterval(firstInterval.to, duration);
         while (isLessThan(durationInterval, secondInterval)) {
             moments.push(durationInterval.from);
-            firstInterval = {
-                from: BEGIN_MONDAY,
-                to: durationInterval.from + (TIME_INDENT - 1) * MS_IN_MIN
-            };
-            durationInterval = getDurationInterval(firstInterval.to, duration);
+            var nextRightLimit = durationInterval.from + (TIME_INDENT - 1) * MS_IN_MIN;
+            durationInterval = getDurationInterval(nextRightLimit, duration);
         }
     }
 
