@@ -43,7 +43,19 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             to: END_WEDNESDAY + MS_IN_MIN
         }
     ]);
-    var lastMoment = getRobberyMoment(timeIntervals, duration);
+    var foundMoments = [];
+    var foundMoment = getRobberyMoment(timeIntervals, duration);
+    while (foundMoment) {
+        foundMoments.push(foundMoment);
+        timeIntervals.push(
+            {
+                from: BEGIN_MONDAY,
+                to: foundMoment + (TIME_INDENT - 1) * MS_IN_MIN
+            }
+        );
+        foundMoment = getRobberyMoment(timeIntervals, duration);
+    }
+    var lastMoment = foundMoments[0];
 
     return {
 
@@ -89,17 +101,11 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
          * @returns {Boolean}
          */
         tryLater: function () {
-            var lastTryMoment = lastMoment;
-            timeIntervals.push(
-                {
-                    from: BEGIN_MONDAY,
-                    to: lastMoment + (TIME_INDENT - 1) * MS_IN_MIN
-                }
-            );
-            if (getRobberyMoment(timeIntervals, duration)) {
-                lastMoment = getRobberyMoment(timeIntervals, duration);
+            foundMoments.splice(0, 1);
+            if (foundMoments[0]) {
+                lastMoment = foundMoments[0];
             }
-            if (lastTryMoment === lastMoment) {
+            if (!foundMoments[0]) {
                 return false;
             }
 
@@ -134,13 +140,13 @@ function parseShedule(schedule) {
 function toDate(timeString) {
     var parsedTime = timeString.match(/^([А-Я]{2})\s(\d{2}):(\d{2})/);
     var day = WEEK_DAYS[parsedTime[1]];
-    var hours = parseInt(parsedTime[2]);
-    var minutes = parseInt(parsedTime[3]);
+    var hours = parseInt(parsedTime[2], 10);
+    var minutes = parseInt(parsedTime[3], 10);
 
     return new Date(TODAY.getFullYear(), TODAY.getMonth(), day, hours, minutes).getTime();
 }
 function getTimezone(timeString) {
-    return parseInt(timeString.match(/\+(\d{1,2})$/)[1]);
+    return parseInt(timeString.match(/\+(\d{1,2})$/)[1], 10);
 }
 function getRobberyMoment(intervals, duration) {
     intervals = intersectionTimeIntervals(intervals);
