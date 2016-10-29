@@ -145,10 +145,10 @@ function isLessThan(duration, secondInterval) {
 
     return false;
 }
-function getDurationInterval(interval, duration) {
+function getDurationInterval(endInterval, duration) {
     return {
-        from: interval.to + MS_IN_MIN,
-        to: interval.to + (duration + 1) * MS_IN_MIN
+        from: endInterval + MS_IN_MIN,
+        to: endInterval + (duration + 1) * MS_IN_MIN
     };
 }
 function getRobberyMoments(intervals, duration) {
@@ -157,14 +157,14 @@ function getRobberyMoments(intervals, duration) {
     for (var i = 0; i < intervals.length - 1; i++) {
         var firstInterval = intervals[i];
         var secondInterval = intervals[i + 1];
-        var durationInterval = getDurationInterval(firstInterval, duration);
+        var durationInterval = getDurationInterval(firstInterval.to, duration);
         while (isLessThan(durationInterval, secondInterval)) {
             moments.push(durationInterval.from);
             firstInterval = {
                 from: BEGIN_MONDAY,
                 to: durationInterval.from + (TIME_INDENT - 1) * MS_IN_MIN
             };
-            durationInterval = getDurationInterval(firstInterval, duration);
+            durationInterval = getDurationInterval(firstInterval.to, duration);
         }
     }
 
