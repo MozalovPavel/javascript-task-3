@@ -43,18 +43,7 @@ exports.getAppropriateMoment = function (schedule, duration, workingHours) {
             to: END_WEDNESDAY + MS_IN_MIN
         }
     ]);
-    var foundMoments = [];
-    var foundMoment = getRobberyMoment(timeIntervals, duration);
-    while (foundMoment) {
-        foundMoments.push(foundMoment);
-        timeIntervals.push(
-            {
-                from: BEGIN_MONDAY,
-                to: foundMoment + (TIME_INDENT - 1) * MS_IN_MIN
-            }
-        );
-        foundMoment = getRobberyMoment(timeIntervals, duration);
-    }
+    var foundMoments = getRobberyMoments(timeIntervals, duration);
     var lastMoment = foundMoments[0];
 
     return {
@@ -148,26 +137,45 @@ function toDate(timeString) {
 function getTimezone(timeString) {
     return parseInt(timeString.match(/\+(\d{1,2})$/)[1], 10);
 }
-function getRobberyMoment(intervals, duration) {
+function isLessThan(duration, secondInterval) {
+    if (duration.to < secondInterval.from && duration.to <= END_WEDNESDAY &&
+        duration.from >= BEGIN_MONDAY && isCommonDay(duration.to, duration.from)) {
+        return true;
+    }
+
+    return false;
+}
+function getDurationInterval(interval, duration) {
+    return {
+        from: interval.to + MS_IN_MIN,
+        to: interval.to + (duration + 1) * MS_IN_MIN
+    };
+}
+function getRobberyMoments(intervals, duration) {
     intervals = intersectionTimeIntervals(intervals);
+    var moments = [];
     for (var i = 0; i < intervals.length - 1; i++) {
         var firstInterval = intervals[i];
         var secondInterval = intervals[i + 1];
-        var durationInterval = {
-            from: firstInterval.to + MS_IN_MIN,
-            to: firstInterval.to + (duration + 1) * MS_IN_MIN
-        };
-        if (durationInterval.to < secondInterval.from &&
-            durationInterval.to <= END_WEDNESDAY && durationInterval.from >= BEGIN_MONDAY &&
-            new Date(durationInterval.to).getDate() === new Date(durationInterval.from).getDate()) {
-
-            return durationInterval.from;
+        var durationInterval = getDurationInterval(firstInterval, duration);
+        while (isLessThan(durationInterval, secondInterval)) {
+            moments.push(durationInterval.from);
+            firstInterval = {
+                from: BEGIN_MONDAY,
+                to: durationInterval.from + (TIME_INDENT - 1) * MS_IN_MIN
+            };
+            durationInterval = getDurationInterval(firstInterval, duration);
         }
     }
+
+    return moments;
 }
-function isInLimit(firstInterval) {
-    return firstInterval.to >= BEGIN_MONDAY - MS_IN_MIN &&
-        firstInterval.from <= END_WEDNESDAY + MS_IN_MIN;
+function isCommonDay(firstDate, secondDate) {
+    return new Date(firstDate).getDate() === new Date(secondDate).getDate();
+}
+function isInLimit(interval) {
+    return interval.to >= BEGIN_MONDAY - MS_IN_MIN &&
+        interval.from <= END_WEDNESDAY + MS_IN_MIN;
 }
 function intersectionTimeIntervals(intervals) {
     intervals.sort(function (a, b) {
