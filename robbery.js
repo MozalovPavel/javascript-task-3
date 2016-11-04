@@ -151,7 +151,7 @@ function getDurationInterval(from, duration) {
     };
 }
 function getRobberyMoments(intervals, duration) {
-    intervals = intersectionTimeIntervals(intervals);
+    intervals = getMergingIntervals(intervals);
     var moments = [];
     for (var i = 0; i < intervals.length - 1; i++) {
         var firstInterval = intervals[i];
@@ -173,7 +173,7 @@ function isInLimit(interval) {
     return interval.to >= BEGIN_MONDAY - MS_IN_MIN &&
         interval.from <= END_WEDNESDAY + MS_IN_MIN;
 }
-function intersectionTimeIntervals(intervals) {
+function getMergingIntervals(intervals) {
     intervals.sort(function (a, b) {
         return a.from - b.from;
     });
